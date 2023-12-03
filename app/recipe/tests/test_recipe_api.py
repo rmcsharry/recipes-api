@@ -314,3 +314,33 @@ class PrivateRecipeApiTests(TestCase):
                 user=self.user,
             ).exists()
             self.assertTrue(exists)
+
+    def test_create_recipe_with_existing_ingredients(self):
+        """Test creating a recipe with existing ingredients."""
+        ingredient = Ingredient.objects.create(
+            user=self.user,
+            name='Lemon',
+        )
+        payload = {
+            'title': 'Lemon Fish Soup',
+            'time_minutes': 20,
+            'price': Decimal('2.20'),
+            'ingredients': [{'name': 'Lemon'}, {'name': 'Fish Sauce'}],
+        }
+        res = self.client.post(RECIPES_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        recipes = Recipe.objects.filter(user=self.user)
+        self.assertEqual(recipes.count(), 1)
+        recipe = recipes[0]
+        # the next 2 lines ensure that the Lemon ingredient is not duplicated when we created the recipe
+        # with the Lemon ingredient, and that the pre-existing Lemon ingredient was assigned to the new recipe
+        self.assertEqual(recipe.ingredients.count(), 2)
+        self.assertIn(ingredient, recipe.ingredients.all())
+        # loop through ALL the ingredients that were in the payload to ensure they were added to the recipe
+        for ingredient in payload['ingredients']:
+            exists = recipe.ingredients.filter(
+                name=ingredient['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
